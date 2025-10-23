@@ -12,6 +12,9 @@ st.set_page_config(
 
 st.header("OPenAIPerovskite", divider="gray")
 
+# Define URL of dataset
+URL "https://raw.githubusercontent.com/Kamsinah0606/OPenAIPerovskite/refs/heads/research/Dataset%202D%20Perovskite%20(2016-2025)%20-%20Mixed.csv"
+
 # --- 2. DATA LOADING AND CLEANING ---
 @st.cache_data
 def load_data():
