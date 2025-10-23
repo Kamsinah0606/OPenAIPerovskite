@@ -40,16 +40,16 @@ def load_data():
     df = df.dropna(subset=['PCE_Clean'])
     df = df[df['PCE_Clean'] > 0.1].copy()
 
-    # >>> FIX FOR VALUEERROR: Clean and convert Thickness column <<<
+    # >>> NEW CLEANING STEP FOR THICKNESS <<<
     if 'Perovskite_Thickness_nm' in df.columns:
-        # Remove non-digit/non-dot characters (like 'nm', 'approx', ranges) and convert to float
+        # Clean thickness column: convert to string, remove non-numeric artifacts, then coerce to float.
         df['Thickness_Clean'] = df['Perovskite_Thickness_nm'].astype(str).str.replace(r'[^\d\.]', '', regex=True).str.strip()
         df['Thickness_Clean'] = pd.to_numeric(df['Thickness_Clean'], errors='coerce')
-        # Drop rows where Thickness_Clean is NaN, as the scatter plot size requires numeric data
+        # Use a reasonable minimum filter if necessary, or just drop NaNs for the plot
         df = df[df['Thickness_Clean'].notna()].copy() 
     else:
-        st.warning("Column 'Perovskite_Thickness_nm' not found. Scatter plot size will be constant.")
-        df['Thickness_Clean'] = 1 # Constant size if column is missing
+        st.warning("Column 'Perovskite_Thickness_nm' not found. Scatter plot size will be disabled.")
+        df['Thickness_Clean'] = 1 # Set to a non-zero constant to prevent errors if used later
 
     # Convert Publication Date to datetime object
     # ASSUMPTION: The column containing dates is named 'Publication_Date'
@@ -62,7 +62,6 @@ def load_data():
         df['Publication_Date'] = pd.NaT 
 
     return df
-
 data = load_data()
 
 # --- 3. DASHBOARD TITLE AND OVERVIEW ---
@@ -139,15 +138,14 @@ st.markdown("---")
 # VIZ 2: Performance Over Time (Scatter Plot)
 st.subheader("PCE Trend Over Time")
 # Only plot if we have a valid date column
-if not filtered_data['Publication_Date'].isnull().all() and not filtered_data['Thickness_Clean'].isnull().all():
+if not filtered_data['Publication_Date'].isnull().all():
     fig_time = px.scatter(
         filtered_data,
         x='Publication_Date', 
         y='PCE_Clean', 
         color='PCE_Clean',
-        # FIX: Using the cleaned numeric column for size
+        # FIX: Changed to the cleaned numeric column
         size='Thickness_Clean', 
-        # FIX: Updated hover data to use the cleaned thickness column
         hover_data=['PCE_Clean', 'Metal', 'Long_Organic_Cation', 'Thickness_Clean'], 
         title='PCE (%) vs. Publication Date (Size by Thickness)',
         color_continuous_scale=px.colors.sequential.Sunset
