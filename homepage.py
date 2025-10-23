@@ -20,7 +20,7 @@ URL = 'https://raw.githubusercontent.com/Kamsinah0606/OPenAIPerovskite/refs/head
 def load_data():
     """Loads and cleans the 2D Perovskite dataset."""
     
-    # FIX APPLIED HERE: Using the defined URL variable
+    # Use the defined URL to load the data
     try:
         df = pd.read_csv(URL) 
     except Exception as e:
@@ -40,6 +40,17 @@ def load_data():
     df = df.dropna(subset=['PCE_Clean'])
     df = df[df['PCE_Clean'] > 0.1].copy()
 
+    # >>> FIX FOR VALUEERROR: Clean and convert Thickness column <<<
+    if 'Perovskite_Thickness_nm' in df.columns:
+        # Remove non-digit/non-dot characters (like 'nm', 'approx', ranges) and convert to float
+        df['Thickness_Clean'] = df['Perovskite_Thickness_nm'].astype(str).str.replace(r'[^\d\.]', '', regex=True).str.strip()
+        df['Thickness_Clean'] = pd.to_numeric(df['Thickness_Clean'], errors='coerce')
+        # Drop rows where Thickness_Clean is NaN, as the scatter plot size requires numeric data
+        df = df[df['Thickness_Clean'].notna()].copy() 
+    else:
+        st.warning("Column 'Perovskite_Thickness_nm' not found. Scatter plot size will be constant.")
+        df['Thickness_Clean'] = 1 # Constant size if column is missing
+
     # Convert Publication Date to datetime object
     # ASSUMPTION: The column containing dates is named 'Publication_Date'
     if 'Publication_Date' in df.columns:
@@ -48,7 +59,6 @@ def load_data():
         df = df.dropna(subset=['Publication_Date']).copy() 
     else:
         st.warning("Column 'Publication_Date' not found. Time-based filters/plots will be skipped.")
-        # Create a placeholder column for filtering logic to avoid errors later
         df['Publication_Date'] = pd.NaT 
 
     return df
@@ -129,21 +139,23 @@ st.markdown("---")
 # VIZ 2: Performance Over Time (Scatter Plot)
 st.subheader("PCE Trend Over Time")
 # Only plot if we have a valid date column
-if not filtered_data['Publication_Date'].isnull().all():
+if not filtered_data['Publication_Date'].isnull().all() and not filtered_data['Thickness_Clean'].isnull().all():
     fig_time = px.scatter(
         filtered_data,
         x='Publication_Date', 
         y='PCE_Clean', 
         color='PCE_Clean',
-        size='Perovskite_Thickness_nm', # Use a key metric for size
-        hover_data=['PCE_Clean', 'Metal', 'Long_Organic_Cation', 'Perovskite_Thickness_nm'], 
+        # FIX: Using the cleaned numeric column for size
+        size='Thickness_Clean', 
+        # FIX: Updated hover data to use the cleaned thickness column
+        hover_data=['PCE_Clean', 'Metal', 'Long_Organic_Cation', 'Thickness_Clean'], 
         title='PCE (%) vs. Publication Date (Size by Thickness)',
         color_continuous_scale=px.colors.sequential.Sunset
     )
     fig_time.update_layout(xaxis_title="Publication Date (2016–2025)", yaxis_title="PCE (%)")
     st.plotly_chart(fig_time, use_container_width=True)
 else:
-    st.warning("Cannot plot PCE Trend Over Time as 'Publication_Date' data is missing or invalid.")
+    st.warning("Cannot plot PCE Trend Over Time as 'Publication_Date' or 'Perovskite_Thickness_nm' data is missing or invalid.")
 
 st.markdown("---")
 
@@ -172,8 +184,9 @@ st.markdown("---")
 
 # --- 6. RAW DATA TABLE ---
 st.subheader("Raw Filtered Data")
-display_cols_required = ['PCE_Clean', 'Metal', 'Long_Organic_Cation', 'Perovskite_Thickness_nm', 'DOI_Number'] 
+# Added Thickness_Clean to display columns
+display_cols_required = ['PCE_Clean', 'Metal', 'Long_Organic_Cation', 'Thickness_Clean', 'DOI_Number'] 
 # Filter the list to only include columns that exist in the DataFrame
 display_cols = [col for col in display_cols_required if col in filtered_data.columns]
 
-st.dataframe(filtered_data[display_cols].rename(columns={'PCE_Clean': 'PCE (%)', 'DOI_Number': 'DOI'}), use_container_width=True)
+st.dataframe(filtered_data[display_cols].rename(columns={'PCE_Clean': 'PCE (%)', 'DOI_Number': 'DOI', 'Thickness_Clean': 'Thickness (nm)'}), use_container_width=True)
