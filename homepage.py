@@ -12,18 +12,19 @@ st.set_page_config(
 
 st.header("OPenAIPerovskite", divider="gray")
 
-# Define URL of dataset
-URL ='https://raw.githubusercontent.com/Kamsinah0606/OPenAIPerovskite/refs/heads/research/Dataset%202D%20Perovskite%20(2016-2025)%20-%20Mixed.csv'
+# Defined URL to load the data from GitHub
+URL = 'https://raw.githubusercontent.com/Kamsinah0606/OPenAIPerovskite/refs/heads/research/Dataset%202D%20Perovskite%20(2016-2025)%20-%20Mixed.csv'
 
 # --- 2. DATA LOADING AND CLEANING ---
 @st.cache_data
 def load_data():
     """Loads and cleans the 2D Perovskite dataset."""
-    # NOTE: Replace 'Dataset 2D Perovskite (2016-2025) - Mixed.csv' with the actual path/name.
+    
+    # FIX APPLIED HERE: Using the defined URL variable
     try:
-        df = pd.read_csv('Dataset 2D Perovskite (2016-2025) - Mixed.csv')
-    except FileNotFoundError:
-        st.error("Error: 'Dataset 2D Perovskite (2016-2025) - Mixed.csv' not found. Please ensure the file is in the correct directory.")
+        df = pd.read_csv(URL) 
+    except Exception as e:
+        st.error(f"Error loading data from URL. Please check the link and internet connection. Error: {e}")
         return pd.DataFrame() 
 
     # Normalize column names for easier access
@@ -43,7 +44,7 @@ def load_data():
     # ASSUMPTION: The column containing dates is named 'Publication_Date'
     if 'Publication_Date' in df.columns:
         df['Publication_Date'] = pd.to_datetime(df['Publication_Date'], errors='coerce', dayfirst=True)
-        # Fix: Drop rows where the date conversion failed
+        # Drop rows where the date conversion failed
         df = df.dropna(subset=['Publication_Date']).copy() 
     else:
         st.warning("Column 'Publication_Date' not found. Time-based filters/plots will be skipped.")
@@ -118,7 +119,7 @@ fig_hist = px.histogram(
     x='PCE_Clean', 
     nbins=30, 
     title='Distribution of PCE (%) in 2D Perovskite Devices',
-    color_discrete_sequence=['#636EFA'] # FIXED: Added color sequence
+    color_discrete_sequence=['#636EFA'] 
 )
 fig_hist.update_layout(xaxis_title="Power Conversion Efficiency (PCE) %", yaxis_title="Number of Devices")
 st.plotly_chart(fig_hist, use_container_width=True)
@@ -135,7 +136,6 @@ if not filtered_data['Publication_Date'].isnull().all():
         y='PCE_Clean', 
         color='PCE_Clean',
         size='Perovskite_Thickness_nm', # Use a key metric for size
-        # FIXED: Added hover_data columns
         hover_data=['PCE_Clean', 'Metal', 'Long_Organic_Cation', 'Perovskite_Thickness_nm'], 
         title='PCE (%) vs. Publication Date (Size by Thickness)',
         color_continuous_scale=px.colors.sequential.Sunset
@@ -172,7 +172,6 @@ st.markdown("---")
 
 # --- 6. RAW DATA TABLE ---
 st.subheader("Raw Filtered Data")
-# FIXED: Defined display_cols
 display_cols_required = ['PCE_Clean', 'Metal', 'Long_Organic_Cation', 'Perovskite_Thickness_nm', 'DOI_Number'] 
 # Filter the list to only include columns that exist in the DataFrame
 display_cols = [col for col in display_cols_required if col in filtered_data.columns]
