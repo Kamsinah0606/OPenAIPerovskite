@@ -48,7 +48,11 @@ st.markdown("---")
 # --------------------------------------------------
 # 4. DATA SOURCE
 # --------------------------------------------------
-URL = "https://raw.githubusercontent.com/Kamsinah0606/OPenAIPerovskite/research/Dataset%202D%20Perovskite%20(2016-2025)%20-%20Mixed.csv"
+URL = (
+    "https://raw.githubusercontent.com/"
+    "Kamsinah0606/OPenAIPerovskite/research/"
+    "Dataset%202D%20Perovskite%20(2016-2025)%20-%20Mixed.csv"
+)
 
 # --------------------------------------------------
 # 5. LOAD & CLEAN DATA
@@ -57,6 +61,7 @@ URL = "https://raw.githubusercontent.com/Kamsinah0606/OPenAIPerovskite/research/
 def load_data():
     df = pd.read_csv(URL)
 
+    # Standardize column names
     df.columns = (
         df.columns
         .str.replace(' ', '_')
@@ -65,15 +70,26 @@ def load_data():
         .str.replace(')', '', regex=False)
     )
 
-    df['PCEpct'] = df['PCEpct'].astype(str).str.replace('$', '', regex=False)
-    df['PCE_Clean'] = pd.to_numeric(df['PCEpct'], errors='coerce')
-    df = df.dropna(subset=['PCE_Clean'])
-    df = df[df['PCE_Clean'] > 0.1]
+    # Clean PCE
+    if 'PCEpct' in df.columns:
+        df['PCEpct'] = df['PCEpct'].astype(str).str.replace('%', '', regex=False)
+        df['PCE_Clean'] = pd.to_numeric(df['PCEpct'], errors='coerce')
+        df = df.dropna(subset=['PCE_Clean'])
+        df = df[df['PCE_Clean'] > 0.1]
+    else:
+        st.error("PCE column not found in dataset.")
+        return pd.DataFrame()
 
+    # Publication date
     if 'Publication_Date' in df.columns:
-        df['Publication_Date'] = pd.to_datetime(df['Publication_Date'], errors='coerce', dayfirst=True)
+        df['Publication_Date'] = pd.to_datetime(
+            df['Publication_Date'],
+            errors='coerce',
+            dayfirst=True
+        )
         df = df.dropna(subset=['Publication_Date'])
 
+    # Thickness
     if 'Perovskite_Thickness_nm' in df.columns:
         df['Thickness_Clean'] = (
             df['Perovskite_Thickness_nm']
@@ -83,6 +99,7 @@ def load_data():
         df['Thickness_Clean'] = pd.to_numeric(df['Thickness_Clean'], errors='coerce')
 
     return df
+
 
 data = load_data()
 if data.empty:
@@ -148,7 +165,8 @@ yearly_pce = (
     filtered_data
     .groupby(filtered_data['Publication_Date'].dt.year)['PCE_Clean']
     .mean()
-    .reset_index(name="Mean PCE (%)")
+    .reset_index()
+    .rename(columns={'Publication_Date': 'Year', 'PCE_Clean': 'Mean PCE (%)'})
 )
 
 fig_line = px.line(
@@ -162,41 +180,59 @@ fig_line = px.line(
 st.plotly_chart(fig_line, use_container_width=True)
 
 # Pie chart (FIXED COLOR PALETTE)
-metal_counts = filtered_data['Metal'].dropna().value_counts().reset_index()
-metal_counts.columns = ["Metal", "Count"]
+if 'Metal' in filtered_data.columns:
+    metal_counts = (
+        filtered_data['Metal']
+        .dropna()
+        .value_counts()
+        .reset_index()
+    )
+    metal_counts.columns = ["Metal", "Count"]
 
-fig_pie = px.pie(
-    metal_counts,
-    names="Metal",
-    values="Count",
-    hole=0.4,
-    title="Metal Composition",
-    color_discrete_sequence=px.colors.sequential.YlOrBr
-)
-st.plotly_chart(fig_pie, use_container_width=True)
+    fig_pie = px.pie(
+        metal_counts,
+        names="Metal",
+        values="Count",
+        hole=0.4,
+        title="Metal Composition",
+        color_discrete_sequence=px.colors.sequential.YlOrBr
+    )
+    st.plotly_chart(fig_pie, use_container_width=True)
 
 # Bar chart
-a_counts = filtered_data['A_Cation'].dropna().value_counts().reset_index()
-a_counts.columns = ["A-Site Cation", "Count"]
+if 'A_Cation' in filtered_data.columns:
+    a_counts = (
+        filtered_data['A_Cation']
+        .dropna()
+        .value_counts()
+        .reset_index()
+    )
+    a_counts.columns = ["A-Site Cation", "Count"]
 
-fig_bar = px.bar(
-    a_counts,
-    x="A-Site Cation",
-    y="Count",
-    text="Count",
-    title="A-Site Cation Distribution",
-    color_discrete_sequence=["#F85A40"]
-)
-fig_bar.update_layout(xaxis_tickangle=-45)
-st.plotly_chart(fig_bar, use_container_width=True)
+    fig_bar = px.bar(
+        a_counts,
+        x="A-Site Cation",
+        y="Count",
+        text="Count",
+        title="A-Site Cation Distribution",
+        color_discrete_sequence=["#F85A40"]
+    )
+    fig_bar.update_layout(xaxis_tickangle=-45)
+    st.plotly_chart(fig_bar, use_container_width=True)
 
 # --------------------------------------------------
 # 9. TABLE
 # --------------------------------------------------
 st.subheader("Filtered Dataset")
+
+display_cols = [
+    col for col in
+    ['PCE_Clean', 'Metal', 'A_Cation', 'Thickness_Clean', 'DOI_Number']
+    if col in filtered_data.columns
+]
+
 st.dataframe(
-    filtered_data[['PCE_Clean', 'Metal', 'A_Cation', 'Thickness_Clean', 'DOI_Number']]
-    .rename(columns={
+    filtered_data[display_cols].rename(columns={
         'PCE_Clean': 'PCE (%)',
         'A_Cation': 'A-Site Cation',
         'Thickness_Clean': 'Thickness (nm)',
