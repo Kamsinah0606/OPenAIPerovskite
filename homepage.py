@@ -17,34 +17,23 @@ st.set_page_config(
 # --------------------------------------------------
 st.markdown("""
 <style>
-/* App background */
-.stApp {
-    background-color: #F9FAF7;
-}
+.stApp { background-color: #F9FAF7; }
 
-/* Headers */
 h1, h2, h3 {
     color: #0B3C5D;
     font-weight: 700;
 }
 
-/* Sidebar */
 section[data-testid="stSidebar"] {
     background-color: #FFF6E0;
     border-right: 2px solid #FDB813;
 }
 
-/* Metric cards */
 div[data-testid="stMetric"] {
     background-color: white;
     padding: 15px;
     border-radius: 12px;
     border-left: 6px solid #FDB813;
-}
-
-/* Dataframe */
-.stDataFrame {
-    border-radius: 10px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -62,13 +51,12 @@ st.markdown("---")
 URL = "https://raw.githubusercontent.com/Kamsinah0606/OPenAIPerovskite/research/Dataset%202D%20Perovskite%20(2016-2025)%20-%20Mixed.csv"
 
 # --------------------------------------------------
-# 5. DATA LOADING & CLEANING
+# 5. LOAD & CLEAN DATA
 # --------------------------------------------------
 @st.cache_data
 def load_data():
     df = pd.read_csv(URL)
 
-    # Normalize column names
     df.columns = (
         df.columns
         .str.replace(' ', '_')
@@ -77,13 +65,15 @@ def load_data():
         .str.replace(')', '', regex=False)
     )
 
-    # Clean PCE
-    df['PCEpct'] = df['PCEpct'].astype(str).str.replace('$', '', regex=False).str.strip()
+    df['PCEpct'] = df['PCEpct'].astype(str).str.replace('$', '', regex=False)
     df['PCE_Clean'] = pd.to_numeric(df['PCEpct'], errors='coerce')
     df = df.dropna(subset=['PCE_Clean'])
-    df = df[df['PCE_Clean'] > 0.1].copy()
+    df = df[df['PCE_Clean'] > 0.1]
 
-    # Thickness cleaning
+    if 'Publication_Date' in df.columns:
+        df['Publication_Date'] = pd.to_datetime(df['Publication_Date'], errors='coerce', dayfirst=True)
+        df = df.dropna(subset=['Publication_Date'])
+
     if 'Perovskite_Thickness_nm' in df.columns:
         df['Thickness_Clean'] = (
             df['Perovskite_Thickness_nm']
@@ -92,20 +82,14 @@ def load_data():
         )
         df['Thickness_Clean'] = pd.to_numeric(df['Thickness_Clean'], errors='coerce')
 
-    # Publication date
-    if 'Publication_Date' in df.columns:
-        df['Publication_Date'] = pd.to_datetime(df['Publication_Date'], errors='coerce', dayfirst=True)
-        df = df.dropna(subset=['Publication_Date'])
-
     return df
 
 data = load_data()
-
 if data.empty:
     st.stop()
 
 # --------------------------------------------------
-# 6. OVERVIEW METRIC
+# 6. METRIC
 # --------------------------------------------------
 st.subheader("Overview of Power Conversion Efficiency (PCE)")
 st.metric(
@@ -115,43 +99,41 @@ st.metric(
 )
 
 # --------------------------------------------------
-# 7. SIDEBAR FILTERS
+# 7. FILTERS
 # --------------------------------------------------
-st.sidebar.header("🔎 Data Filters")
+st.sidebar.header("🔎 Filters")
 
-pce_min, pce_max = data['PCE_Clean'].min(), data['PCE_Clean'].max()
 pce_range = st.sidebar.slider(
     "PCE Range (%)",
-    float(pce_min),
-    float(pce_max),
-    (float(pce_min), float(pce_max)),
+    float(data['PCE_Clean'].min()),
+    float(data['PCE_Clean'].max()),
+    (
+        float(data['PCE_Clean'].min()),
+        float(data['PCE_Clean'].max())
+    ),
     step=0.1
 )
 
-min_year = data['Publication_Date'].dt.year.min()
-max_year = data['Publication_Date'].dt.year.max()
 year_range = st.sidebar.slider(
     "Publication Year",
-    int(min_year),
-    int(max_year),
-    (int(min_year), int(max_year))
+    int(data['Publication_Date'].dt.year.min()),
+    int(data['Publication_Date'].dt.year.max()),
+    (
+        int(data['Publication_Date'].dt.year.min()),
+        int(data['Publication_Date'].dt.year.max())
+    )
 )
 
 filtered_data = data[
-    (data['PCE_Clean'] >= pce_range[0]) &
-    (data['PCE_Clean'] <= pce_range[1]) &
-    (data['Publication_Date'].dt.year >= year_range[0]) &
-    (data['Publication_Date'].dt.year <= year_range[1])
+    (data['PCE_Clean'].between(*pce_range)) &
+    (data['Publication_Date'].dt.year.between(*year_range))
 ]
-
-st.sidebar.info(f"Showing {len(filtered_data)} of {len(data)} records")
 
 # --------------------------------------------------
 # 8. VISUALIZATIONS
 # --------------------------------------------------
 
 # Histogram
-st.subheader("PCE Distribution")
 fig_hist = px.histogram(
     filtered_data,
     x="PCE_Clean",
@@ -159,11 +141,9 @@ fig_hist = px.histogram(
     title="Distribution of PCE (%)",
     color_discrete_sequence=["#FDB813"]
 )
-fig_hist.update_layout(xaxis_title="PCE (%)", yaxis_title="Count")
 st.plotly_chart(fig_hist, use_container_width=True)
 
 # Line chart
-st.subheader("PCE Trend Over Time")
 yearly_pce = (
     filtered_data
     .groupby(filtered_data['Publication_Date'].dt.year)['PCE_Clean']
@@ -176,14 +156,12 @@ fig_line = px.line(
     x="Publication_Date",
     y="Mean PCE (%)",
     markers=True,
-    title="Average PCE Evolution",
+    title="Average PCE Trend",
     color_discrete_sequence=["#0B3C5D"]
 )
-fig_line.update_layout(xaxis_title="Year", yaxis_title="Mean PCE (%)")
 st.plotly_chart(fig_line, use_container_width=True)
 
-# Pie chart
-st.subheader("Metal Composition")
+# Pie chart (FIXED COLOR PALETTE)
 metal_counts = filtered_data['Metal'].dropna().value_counts().reset_index()
 metal_counts.columns = ["Metal", "Count"]
 
@@ -192,29 +170,28 @@ fig_pie = px.pie(
     names="Metal",
     values="Count",
     hole=0.4,
-    title="Distribution of Metal Types",
-    color_discrete_sequence=px.colors.sequential.Solar
+    title="Metal Composition",
+    color_discrete_sequence=px.colors.sequential.YlOrBr
 )
 st.plotly_chart(fig_pie, use_container_width=True)
 
 # Bar chart
-st.subheader("A-Site Cation Distribution")
-a_cation_counts = filtered_data['A_Cation'].dropna().value_counts().reset_index()
-a_cation_counts.columns = ["A-Site Cation", "Count"]
+a_counts = filtered_data['A_Cation'].dropna().value_counts().reset_index()
+a_counts.columns = ["A-Site Cation", "Count"]
 
 fig_bar = px.bar(
-    a_cation_counts,
+    a_counts,
     x="A-Site Cation",
     y="Count",
     text="Count",
-    title="A-Site Cation Usage",
+    title="A-Site Cation Distribution",
     color_discrete_sequence=["#F85A40"]
 )
 fig_bar.update_layout(xaxis_tickangle=-45)
 st.plotly_chart(fig_bar, use_container_width=True)
 
 # --------------------------------------------------
-# 9. RAW DATA TABLE
+# 9. TABLE
 # --------------------------------------------------
 st.subheader("Filtered Dataset")
 st.dataframe(
