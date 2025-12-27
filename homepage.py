@@ -3,8 +3,54 @@ import pandas as pd
 import plotly.express as px
 import numpy as np
 
+# --- SOLAR CELL COLOR THEME ---
+SOLAR_COLORS = {
+    "primary": "#FDB813",   # Solar gold
+    "secondary": "#0B3C5D", # Deep blue (device layers)
+    "accent": "#F85A40",    # Energy accent
+    "background": "#F9FAF7"
+}
+
 # --- 1. CONFIGURATION ---
 st.set_page_config(
+    st.markdown(
+    f"""
+    <style>
+    /* Main background */
+    .stApp {{
+        background-color: {SOLAR_COLORS['background']};
+    }}
+
+    /* Titles */
+    h1, h2, h3 {{
+        color: {SOLAR_COLORS['secondary']};
+        font-weight: 700;
+    }}
+
+    /* Sidebar */
+    section[data-testid="stSidebar"] {{
+        background-color: #FFF6E0;
+        border-right: 2px solid {SOLAR_COLORS['primary']};
+    }}
+
+    /* Metrics */
+    div[data-testid="stMetric"] {{
+        background-color: white;
+        padding: 15px;
+        border-radius: 12px;
+        border-left: 6px solid {SOLAR_COLORS['primary']};
+    }}
+
+    /* Dataframe */
+    .stDataFrame {{
+        border: 1px solid #E0E0E0;
+        border-radius: 10px;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
     page_title="2D Perovskite PCE Dashboard",
     layout="wide",
     initial_sidebar_state="expanded"
