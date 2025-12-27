@@ -122,18 +122,39 @@ st.sidebar.info(f"Showing **{len(filtered_data)}** of **{len(data)}** total reco
 # --- 5. VISUALIZATIONS ---
 
 # VIZ 1: PCE Distribution (Histogram)
-st.subheader("PCE Distribution by Count")
-fig_hist = px.histogram(
-    filtered_data, 
-    x='PCE_Clean', 
-    nbins=30, 
-    title='Distribution of PCE (%) in 2D Perovskite Devices',
-    color_discrete_sequence=['#636EFA'] 
-)
-fig_hist.update_layout(xaxis_title="Power Conversion Efficiency (PCE) %", yaxis_title="Number of Devices")
-st.plotly_chart(fig_hist, use_container_width=True)
+# VIZ 2: PCE Trend Over Time (Line Chart)
+st.subheader("PCE Trend Over Time (Mean per Year)")
 
-st.markdown("---")
+# Only plot if publication dates exist
+if not filtered_data['Publication_Date'].isnull().all():
+
+    # Group by year and calculate mean PCE
+    yearly_pce = (
+        filtered_data
+        .groupby(filtered_data['Publication_Date'].dt.year)['PCE_Clean']
+        .mean()
+        .reset_index()
+        .rename(columns={'Publication_Date': 'Year', 'PCE_Clean': 'Mean PCE (%)'})
+    )
+
+    fig_line = px.line(
+        yearly_pce,
+        x='Year',
+        y='Mean PCE (%)',
+        markers=True,
+        title='Average PCE Evolution of 2D Perovskite Devices (2016–2025)'
+    )
+
+    fig_line.update_layout(
+        xaxis_title="Publication Year",
+        yaxis_title="Average Power Conversion Efficiency (%)"
+    )
+
+    st.plotly_chart(fig_line, use_container_width=True)
+
+else:
+    st.info("Publication date data not available for line chart.")
+
 
 # --- 6. RAW DATA TABLE ---
 st.subheader("Raw Filtered Data")
