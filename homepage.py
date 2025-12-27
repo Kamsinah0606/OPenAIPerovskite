@@ -4,7 +4,7 @@ import plotly.express as px
 import numpy as np
 
 # --------------------------------------------------
-# 1. CONFIGURATION
+# 1. PAGE CONFIG
 # --------------------------------------------------
 st.set_page_config(
     page_title="2D Perovskite PCE Dashboard",
@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 # --------------------------------------------------
-# 2. SOLAR CELL THEME (SAFE CSS)
+# 2. SOLAR THEME (SAFE CSS)
 # --------------------------------------------------
 st.markdown("""
 <style>
@@ -48,7 +48,7 @@ st.markdown("---")
 # --------------------------------------------------
 # 4. DATA SOURCE
 # --------------------------------------------------
-URL = (
+DATA_URL = (
     "https://raw.githubusercontent.com/"
     "Kamsinah0606/OPenAIPerovskite/research/"
     "Dataset%202D%20Perovskite%20(2016-2025)%20-%20Mixed.csv"
@@ -59,44 +59,51 @@ URL = (
 # --------------------------------------------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv(URL)
+    df = pd.read_csv(DATA_URL)
 
-    # Standardize column names
+    # Normalize column names
     df.columns = (
         df.columns
-        .str.replace(' ', '_')
-        .str.replace('%', 'pct')
-        .str.replace('(', '', regex=False)
-        .str.replace(')', '', regex=False)
+        .str.strip()
+        .str.replace(" ", "_")
+        .str.replace("%", "pct")
+        .str.replace("(", "", regex=False)
+        .str.replace(")", "", regex=False)
     )
 
-    # Clean PCE
-    if 'PCEpct' in df.columns:
-        df['PCEpct'] = df['PCEpct'].astype(str).str.replace('%', '', regex=False)
-        df['PCE_Clean'] = pd.to_numeric(df['PCEpct'], errors='coerce')
-        df = df.dropna(subset=['PCE_Clean'])
-        df = df[df['PCE_Clean'] > 0.1]
-    else:
-        st.error("PCE column not found in dataset.")
+    # ---- PCE ----
+    if "PCEpct" not in df.columns:
+        st.error("❌ PCE column not found in dataset.")
         return pd.DataFrame()
 
-    # Publication date
-    if 'Publication_Date' in df.columns:
-        df['Publication_Date'] = pd.to_datetime(
-            df['Publication_Date'],
-            errors='coerce',
+    df["PCEpct"] = df["PCEpct"].astype(str).str.replace("%", "", regex=False)
+    df["PCE_Clean"] = pd.to_numeric(df["PCEpct"], errors="coerce")
+    df = df.dropna(subset=["PCE_Clean"])
+    df = df[df["PCE_Clean"] > 0.1]
+
+    # ---- Publication Date ----
+    if "Publication_Date" in df.columns:
+        df["Publication_Date"] = pd.to_datetime(
+            df["Publication_Date"],
+            errors="coerce",
             dayfirst=True
         )
-        df = df.dropna(subset=['Publication_Date'])
+        df = df.dropna(subset=["Publication_Date"])
+        df["Year"] = df["Publication_Date"].dt.year
+    else:
+        st.error("❌ Publication_Date column missing.")
+        return pd.DataFrame()
 
-    # Thickness
-    if 'Perovskite_Thickness_nm' in df.columns:
-        df['Thickness_Clean'] = (
-            df['Perovskite_Thickness_nm']
+    # ---- Thickness ----
+    if "Perovskite_Thickness_nm" in df.columns:
+        df["Thickness_Clean"] = (
+            df["Perovskite_Thickness_nm"]
             .astype(str)
-            .str.replace(r'[^\d\.]', '', regex=True)
+            .str.replace(r"[^\d.]", "", regex=True)
         )
-        df['Thickness_Clean'] = pd.to_numeric(df['Thickness_Clean'], errors='coerce')
+        df["Thickness_Clean"] = pd.to_numeric(
+            df["Thickness_Clean"], errors="coerce"
+        )
 
     return df
 
@@ -106,13 +113,14 @@ if data.empty:
     st.stop()
 
 # --------------------------------------------------
-# 6. METRIC
+# 6. METRICS
 # --------------------------------------------------
 st.subheader("Overview of Power Conversion Efficiency (PCE)")
+
 st.metric(
-    "Maximum PCE Recorded",
-    f"{data['PCE_Clean'].max():.2f} %",
-    f"Median PCE: {data['PCE_Clean'].median():.2f} %"
+    label="Maximum PCE Recorded",
+    value=f"{data['PCE_Clean'].max():.2f} %",
+    delta=f"Median: {data['PCE_Clean'].median():.2f} %"
 )
 
 # --------------------------------------------------
@@ -122,35 +130,35 @@ st.sidebar.header("🔎 Filters")
 
 pce_range = st.sidebar.slider(
     "PCE Range (%)",
-    float(data['PCE_Clean'].min()),
-    float(data['PCE_Clean'].max()),
+    float(data["PCE_Clean"].min()),
+    float(data["PCE_Clean"].max()),
     (
-        float(data['PCE_Clean'].min()),
-        float(data['PCE_Clean'].max())
+        float(data["PCE_Clean"].min()),
+        float(data["PCE_Clean"].max())
     ),
     step=0.1
 )
 
 year_range = st.sidebar.slider(
     "Publication Year",
-    int(data['Publication_Date'].dt.year.min()),
-    int(data['Publication_Date'].dt.year.max()),
+    int(data["Year"].min()),
+    int(data["Year"].max()),
     (
-        int(data['Publication_Date'].dt.year.min()),
-        int(data['Publication_Date'].dt.year.max())
+        int(data["Year"].min()),
+        int(data["Year"].max())
     )
 )
 
 filtered_data = data[
-    (data['PCE_Clean'].between(*pce_range)) &
-    (data['Publication_Date'].dt.year.between(*year_range))
+    data["PCE_Clean"].between(*pce_range)
+    & data["Year"].between(*year_range)
 ]
 
 # --------------------------------------------------
 # 8. VISUALIZATIONS
 # --------------------------------------------------
 
-# Histogram
+# --- Histogram ---
 fig_hist = px.histogram(
     filtered_data,
     x="PCE_Clean",
@@ -160,18 +168,17 @@ fig_hist = px.histogram(
 )
 st.plotly_chart(fig_hist, use_container_width=True)
 
-# Line chart
+# --- Line Chart (FIXED & SAFE) ---
 yearly_pce = (
     filtered_data
-    .groupby(filtered_data['Publication_Date'].dt.year)['PCE_Clean']
+    .groupby("Year", as_index=False)["PCE_Clean"]
     .mean()
-    .reset_index()
-    .rename(columns={'Publication_Date': 'Year', 'PCE_Clean': 'Mean PCE (%)'})
+    .rename(columns={"PCE_Clean": "Mean PCE (%)"})
 )
 
 fig_line = px.line(
     yearly_pce,
-    x="Publication_Date",
+    x="Year",
     y="Mean PCE (%)",
     markers=True,
     title="Average PCE Trend",
@@ -179,10 +186,10 @@ fig_line = px.line(
 )
 st.plotly_chart(fig_line, use_container_width=True)
 
-# Pie chart (FIXED COLOR PALETTE)
-if 'Metal' in filtered_data.columns:
+# --- Pie Chart ---
+if "Metal" in filtered_data.columns:
     metal_counts = (
-        filtered_data['Metal']
+        filtered_data["Metal"]
         .dropna()
         .value_counts()
         .reset_index()
@@ -199,10 +206,10 @@ if 'Metal' in filtered_data.columns:
     )
     st.plotly_chart(fig_pie, use_container_width=True)
 
-# Bar chart
-if 'A_Cation' in filtered_data.columns:
+# --- Bar Chart ---
+if "A_Cation" in filtered_data.columns:
     a_counts = (
-        filtered_data['A_Cation']
+        filtered_data["A_Cation"]
         .dropna()
         .value_counts()
         .reset_index()
@@ -221,22 +228,22 @@ if 'A_Cation' in filtered_data.columns:
     st.plotly_chart(fig_bar, use_container_width=True)
 
 # --------------------------------------------------
-# 9. TABLE
+# 9. DATA TABLE
 # --------------------------------------------------
 st.subheader("Filtered Dataset")
 
-display_cols = [
-    col for col in
-    ['PCE_Clean', 'Metal', 'A_Cation', 'Thickness_Clean', 'DOI_Number']
-    if col in filtered_data.columns
+table_cols = [
+    c for c in
+    ["PCE_Clean", "Metal", "A_Cation", "Thickness_Clean", "DOI_Number"]
+    if c in filtered_data.columns
 ]
 
 st.dataframe(
-    filtered_data[display_cols].rename(columns={
-        'PCE_Clean': 'PCE (%)',
-        'A_Cation': 'A-Site Cation',
-        'Thickness_Clean': 'Thickness (nm)',
-        'DOI_Number': 'DOI'
+    filtered_data[table_cols].rename(columns={
+        "PCE_Clean": "PCE (%)",
+        "A_Cation": "A-Site Cation",
+        "Thickness_Clean": "Thickness (nm)",
+        "DOI_Number": "DOI"
     }),
     use_container_width=True
 )
