@@ -183,6 +183,39 @@ if 'Metal' in filtered_data.columns:
 else:
     st.warning("Column 'Metal' not found. Pie chart cannot be displayed.")
 
+# VIZ 4: A-Cation (Long Organic Cation) Distribution - Bar Chart
+st.subheader("Distribution of A-Cation (Long Organic Cation)")
+
+if 'Long_Organic_Cation' in filtered_data.columns:
+
+    a_cation_counts = (
+        filtered_data['Long_Organic_Cation']
+        .dropna()
+        .value_counts()
+        .reset_index()
+    )
+    a_cation_counts.columns = ['A-Cation', 'Count']
+
+    fig_bar = px.bar(
+        a_cation_counts,
+        x='A-Cation',
+        y='Count',
+        title='A-Cation Usage in 2D Perovskite Devices',
+        text='Count'
+    )
+
+    fig_bar.update_layout(
+        xaxis_title="A-Cation (Long Organic Cation)",
+        yaxis_title="Number of Devices",
+        xaxis_tickangle=-45
+    )
+
+    st.plotly_chart(fig_bar, use_container_width=True)
+
+else:
+    st.warning("Column 'Long_Organic_Cation' not found. Bar chart cannot be displayed.")
+
+
 
 # --- 6. RAW DATA TABLE ---
 st.subheader("Raw Filtered Data")
