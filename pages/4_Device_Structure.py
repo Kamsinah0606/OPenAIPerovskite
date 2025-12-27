@@ -27,41 +27,45 @@ def load_data():
 df = load_data()
 
 # --------------------------------------------------
-# Clean Thickness Column SAFELY
+# Validate required columns
 # --------------------------------------------------
-if "Perovskite_Thickness_nm" not in df.columns:
-    st.error("❌ Perovskite thickness data is not available in this dataset.")
+required_cols = ["Perovskite_Thickness_nm", "PCEpct"]
+
+missing = [c for c in required_cols if c not in df.columns]
+if missing:
+    st.error(f"❌ Missing required columns: {missing}")
     st.stop()
 
-df["Thickness_Clean"] = (
+# --------------------------------------------------
+# Clean thickness data
+# --------------------------------------------------
+df["Thickness_nm"] = (
     df["Perovskite_Thickness_nm"]
     .astype(str)
     .str.replace(r"[^\d.]", "", regex=True)
 )
 
-df["Thickness_Clean"] = pd.to_numeric(df["Thickness_Clean"], errors="coerce")
-
-df = df.dropna(subset=["Thickness_Clean", "PCEpct"])
+df["Thickness_nm"] = pd.to_numeric(df["Thickness_nm"], errors="coerce")
+df = df.dropna(subset=["Thickness_nm", "PCEpct"])
 
 # --------------------------------------------------
-# Visualization 1: Thickness Distribution
+# Visualization 1: Thickness distribution
 # --------------------------------------------------
 fig_hist = px.histogram(
     df,
-    x="Thickness_Clean",
+    x="Thickness_nm",
     nbins=30,
     title="Distribution of Perovskite Layer Thickness (nm)"
 )
 st.plotly_chart(fig_hist, use_container_width=True)
 
 # --------------------------------------------------
-# Visualization 2: Thickness vs PCE
+# Visualization 2: Thickness vs PCE (NO OLS)
 # --------------------------------------------------
 fig_scatter = px.scatter(
     df,
-    x="Thickness_Clean",
+    x="Thickness_nm",
     y="PCEpct",
-    title="Relationship Between Perovskite Thickness and PCE",
-    trendline="ols"
+    title="Perovskite Thickness vs Power Conversion Efficiency",
 )
 st.plotly_chart(fig_scatter, use_container_width=True)
