@@ -154,6 +154,34 @@ if not filtered_data['Publication_Date'].isnull().all():
 
 else:
     st.info("Publication date data not available for line chart.")
+    
+# VIZ 3: Metal Type Distribution (Pie Chart)
+st.subheader("Distribution of Metal Types in 2D Perovskite Devices")
+
+if 'Metal' in filtered_data.columns:
+
+    metal_counts = (
+        filtered_data['Metal']
+        .dropna()
+        .value_counts()
+        .reset_index()
+    )
+    metal_counts.columns = ['Metal', 'Count']
+
+    fig_pie = px.pie(
+        metal_counts,
+        names='Metal',
+        values='Count',
+        title='Metal Composition Used in 2D Perovskite Devices',
+        hole=0.4  # donut-style (optional, looks nicer)
+    )
+
+    fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+
+    st.plotly_chart(fig_pie, use_container_width=True)
+
+else:
+    st.warning("Column 'Metal' not found. Pie chart cannot be displayed.")
 
 
 # --- 6. RAW DATA TABLE ---
