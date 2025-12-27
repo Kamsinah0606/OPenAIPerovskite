@@ -13,27 +13,40 @@ st.set_page_config(
 )
 
 # --------------------------------------------------
-# 2. SOLAR THEME (SAFE CSS)
+# 2. CLEAN WHITE THEME (BLACK TEXT)
 # --------------------------------------------------
 st.markdown("""
 <style>
-.stApp { background-color: #F9FAF7; }
-
-h1, h2, h3 {
-    color: #0B3C5D;
-    font-weight: 700;
+/* App background */
+.stApp {
+    background-color: #FFFFFF;
+    color: #000000;
 }
 
+/* Headers */
+h1, h2, h3, h4, h5, h6 {
+    color: #000000;
+    font-weight: 600;
+}
+
+/* Sidebar */
 section[data-testid="stSidebar"] {
-    background-color: #FFF6E0;
-    border-right: 2px solid #FDB813;
+    background-color: #FFFFFF;
+    border-right: 1px solid #E0E0E0;
 }
 
+/* Metric cards */
 div[data-testid="stMetric"] {
-    background-color: white;
+    background-color: #FFFFFF;
     padding: 15px;
-    border-radius: 12px;
-    border-left: 6px solid #FDB813;
+    border-radius: 8px;
+    border: 1px solid #E0E0E0;
+    color: #000000;
+}
+
+/* Dataframe text */
+div[data-testid="stDataFrame"] {
+    color: #000000;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -41,7 +54,7 @@ div[data-testid="stMetric"] {
 # --------------------------------------------------
 # 3. HEADER
 # --------------------------------------------------
-st.header("☀️ OpenAIPerovskite", divider="gray")
+st.header("OpenAIPerovskite", divider="gray")
 st.title("2D Perovskite Solar Cell Efficiency Dashboard (2016–2025)")
 st.markdown("---")
 
@@ -61,7 +74,6 @@ DATA_URL = (
 def load_data():
     df = pd.read_csv(DATA_URL)
 
-    # Normalize column names
     df.columns = (
         df.columns
         .str.strip()
@@ -71,9 +83,9 @@ def load_data():
         .str.replace(")", "", regex=False)
     )
 
-    # ---- PCE ----
+    # PCE
     if "PCEpct" not in df.columns:
-        st.error("❌ PCE column not found in dataset.")
+        st.error("PCE column not found.")
         return pd.DataFrame()
 
     df["PCEpct"] = df["PCEpct"].astype(str).str.replace("%", "", regex=False)
@@ -81,20 +93,20 @@ def load_data():
     df = df.dropna(subset=["PCE_Clean"])
     df = df[df["PCE_Clean"] > 0.1]
 
-    # ---- Publication Date ----
-    if "Publication_Date" in df.columns:
-        df["Publication_Date"] = pd.to_datetime(
-            df["Publication_Date"],
-            errors="coerce",
-            dayfirst=True
-        )
-        df = df.dropna(subset=["Publication_Date"])
-        df["Year"] = df["Publication_Date"].dt.year
-    else:
-        st.error("❌ Publication_Date column missing.")
+    # Publication date
+    if "Publication_Date" not in df.columns:
+        st.error("Publication_Date column missing.")
         return pd.DataFrame()
 
-    # ---- Thickness ----
+    df["Publication_Date"] = pd.to_datetime(
+        df["Publication_Date"],
+        errors="coerce",
+        dayfirst=True
+    )
+    df = df.dropna(subset=["Publication_Date"])
+    df["Year"] = df["Publication_Date"].dt.year
+
+    # Thickness
     if "Perovskite_Thickness_nm" in df.columns:
         df["Thickness_Clean"] = (
             df["Perovskite_Thickness_nm"]
@@ -126,7 +138,7 @@ st.metric(
 # --------------------------------------------------
 # 7. FILTERS
 # --------------------------------------------------
-st.sidebar.header("🔎 Filters")
+st.sidebar.header("Filters")
 
 pce_range = st.sidebar.slider(
     "PCE Range (%)",
@@ -155,20 +167,20 @@ filtered_data = data[
 ]
 
 # --------------------------------------------------
-# 8. VISUALIZATIONS
+# 8. VISUALIZATIONS (NEUTRAL COLORS)
 # --------------------------------------------------
 
-# --- Histogram ---
+# Histogram
 fig_hist = px.histogram(
     filtered_data,
     x="PCE_Clean",
     nbins=30,
     title="Distribution of PCE (%)",
-    color_discrete_sequence=["#FDB813"]
+    color_discrete_sequence=["#444444"]
 )
 st.plotly_chart(fig_hist, use_container_width=True)
 
-# --- Line Chart (FIXED & SAFE) ---
+# Line chart
 yearly_pce = (
     filtered_data
     .groupby("Year", as_index=False)["PCE_Clean"]
@@ -182,11 +194,11 @@ fig_line = px.line(
     y="Mean PCE (%)",
     markers=True,
     title="Average PCE Trend",
-    color_discrete_sequence=["#0B3C5D"]
+    color_discrete_sequence=["#000000"]
 )
 st.plotly_chart(fig_line, use_container_width=True)
 
-# --- Pie Chart ---
+# Pie chart
 if "Metal" in filtered_data.columns:
     metal_counts = (
         filtered_data["Metal"]
@@ -202,11 +214,11 @@ if "Metal" in filtered_data.columns:
         values="Count",
         hole=0.4,
         title="Metal Composition",
-        color_discrete_sequence=px.colors.sequential.YlOrBr
+        color_discrete_sequence=px.colors.sequential.Greys
     )
     st.plotly_chart(fig_pie, use_container_width=True)
 
-# --- Bar Chart ---
+# Bar chart
 if "A_Cation" in filtered_data.columns:
     a_counts = (
         filtered_data["A_Cation"]
@@ -222,7 +234,7 @@ if "A_Cation" in filtered_data.columns:
         y="Count",
         text="Count",
         title="A-Site Cation Distribution",
-        color_discrete_sequence=["#F85A40"]
+        color_discrete_sequence=["#666666"]
     )
     fig_bar.update_layout(xaxis_tickangle=-45)
     st.plotly_chart(fig_bar, use_container_width=True)
