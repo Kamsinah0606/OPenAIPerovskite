@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-st.title("📚 Publication & Dataset Explorer")
+st.title("📚 Publication Explorer")
 
 # --------------------------------------------------
 # Load shared dataset
@@ -21,45 +21,32 @@ def load_data():
         .str.replace("(", "", regex=False)
         .str.replace(")", "", regex=False)
     )
-
-    # Convert publication date if exists
-    if "Publication_Date" in df.columns:
-        df["Publication_Date"] = pd.to_datetime(
-            df["Publication_Date"], errors="coerce", dayfirst=True
-        )
-
     return df
 
 df = load_data()
 
 # --------------------------------------------------
-# Select Available Columns SAFELY
+# Safely select available columns
 # --------------------------------------------------
-desired_columns = [
-    "Publication_Date",
+candidate_columns = [
+    "Publication_Year",
     "PCEpct",
     "Metal",
     "A_Cation",
     "Perovskite_Thickness_nm",
-    "DOI_Number"
+    "DOI"
 ]
 
-available_columns = [col for col in desired_columns if col in df.columns]
+available_columns = [c for c in candidate_columns if c in df.columns]
 
 if not available_columns:
-    st.error("❌ No publication-related columns found in the dataset.")
+    st.error("❌ No publication-related columns available in this dataset.")
     st.stop()
 
 # --------------------------------------------------
-# Display Dataset
+# Display table
 # --------------------------------------------------
 st.dataframe(
-    df[available_columns]
-        .rename(columns={
-            "PCEpct": "PCE (%)",
-            "A_Cation": "A-Site Cation",
-            "Perovskite_Thickness_nm": "Thickness (nm)",
-            "DOI_Number": "DOI"
-        }),
+    df[available_columns],
     use_container_width=True
 )
