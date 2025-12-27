@@ -1,74 +1,83 @@
 import streamlit as st
-import pandas as pd
 
-# --------------------------------------------------
-# 1. PAGE CONFIG (MUST BE FIRST)
-# --------------------------------------------------
+# ------------------------------------------------
+# Page Configuration
+# ------------------------------------------------
 st.set_page_config(
     page_title="OpenAIPerovskite Dashboard",
     page_icon="☀️",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
-# --------------------------------------------------
-# 2. SIDEBAR BRANDING (DO NOT OVERRIDE NAVIGATION)
-# --------------------------------------------------
-st.sidebar.markdown("## ☀️ OpenAIPerovskite")
-st.sidebar.markdown(
-    "Interactive dashboard for **2D Perovskite Solar Cell Research** "
-    "supporting performance analysis, material exploration, and literature discovery."
-)
-st.sidebar.markdown("---")
-st.sidebar.markdown("⬅️ Select a page from the navigation above")
-
-# --------------------------------------------------
-# 3. HEADER
-# --------------------------------------------------
-st.title("2D Perovskite Solar Cell Research Dashboard")
-st.subheader("2016 – 2025")
-st.markdown(
-    """
-    This dashboard provides an interactive platform for visualizing and analyzing
-    experimental results, material compositions, and publication trends in
-    **2D perovskite solar cell research**.
-
-    Use the **sidebar navigation** to explore different analytical modules.
-    """
-)
-
-# --------------------------------------------------
-# 4. DATA SOURCE (URL-BASED, SAFE)
-# --------------------------------------------------
+# ------------------------------------------------
+# Shared Dataset URL (USED BY ALL PAGES)
+# ------------------------------------------------
 DATA_URL = (
     "https://raw.githubusercontent.com/Kamsinah0606/"
     "OPenAIPerovskite/research/"
     "Dataset%202D%20Perovskite%20(2016-2025)%20-%20Mixed.csv"
 )
 
-@st.cache_data
-def load_data():
-    return pd.read_csv(DATA_URL)
+# Make DATA_URL accessible to all pages
+st.session_state["DATA_URL"] = DATA_URL
 
-# --------------------------------------------------
-# 5. QUICK DATA PREVIEW (NO STOP)
-# --------------------------------------------------
-try:
-    df = load_data()
-
-    st.markdown("### 📊 Dataset Snapshot")
-    st.write(f"Total records loaded: **{len(df)}**")
-    st.dataframe(df.head(5), use_container_width=True)
-
-except Exception as e:
-    st.warning("Dataset could not be loaded at the moment.")
-    st.code(str(e))
-
-# --------------------------------------------------
-# 6. FOOTER
-# --------------------------------------------------
-st.markdown("---")
-st.markdown(
-    "<center>© 2025 OpenAIPerovskite | Academic Research Dashboard</center>",
-    unsafe_allow_html=True
+# ------------------------------------------------
+# Define Pages
+# ------------------------------------------------
+overview = st.Page(
+    "pages/1_Overview_Insights.py",
+    title="Overview & Key Insights",
+    icon=":material/dashboard:",
+    default=True
 )
+
+efficiency = st.Page(
+    "pages/2_Efficiency_Trends.py",
+    title="Efficiency Trends & Performance",
+    icon=":material/trending_up:"
+)
+
+materials = st.Page(
+    "pages/3_Material_Composition.py",
+    title="Material Composition Analysis",
+    icon=":material/science:"
+)
+
+device = st.Page(
+    "pages/4_Device_Structure.py",
+    title="Device Structure Analysis",
+    icon=":material/layers:"
+)
+
+comparative = st.Page(
+    "pages/5_Comparative_Analysis.py",
+    title="Comparative & Multivariate Analysis",
+    icon=":material/insights:"
+)
+
+explorer = st.Page(
+    "pages/6_Publication_Explorer.py",
+    title="Publication & Dataset Explorer",
+    icon=":material/menu_book:"
+)
+
+# ------------------------------------------------
+# Navigation Menu
+# ------------------------------------------------
+pg = st.navigation(
+    {
+        "OpenAIPerovskite Dashboard": [
+            overview,
+            efficiency,
+            materials,
+            device,
+            comparative,
+            explorer
+        ]
+    }
+)
+
+# ------------------------------------------------
+# Run Selected Page
+# ------------------------------------------------
+pg.run()
